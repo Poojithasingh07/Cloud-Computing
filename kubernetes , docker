@@ -1,0 +1,92 @@
+k8s-master (if it’s for Master node)
+
+k8s-worker-1 (for Worker node 1)
+
+k8s-worker-2 (for Worker node 2)
+
+SSH into Master Node
+ssh -i ~/Desktop/k8s-key.pem ubuntu@<EC2_PUBLIC_IP>
+Install Docker
+sudo apt update
+sudo apt install -y docker.io
+sudo systemctl enable docker
+sudo systemctl start docker
+ Install Kubernetes (kubeadm, kubelet, kubectl)
+sudo apt-get update
+sudo apt-get install -y apt-transport-https ca-certificates curl gpg
+
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
+
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+ Initialize Kubernetes Cluster
+sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+Setup kubectl config
+Deploy Hadoop Components + Ports
+nano namenode.yaml
+kubectl apply -f namenode.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hadoop-namenode
+  labels:
+    app: hadoop-namenode
+spec:
+  containers:
+  - name: hadoop-namenode
+    image: sequenceiq/hadoop-docker:2.7.1
+    ports:
+    - containerPort: 50070  # Web UI
+    - containerPort: 9000   # HDFS
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hadoop-namenode
+spec:
+  selector:
+    app: hadoop-namenode
+  ports:
+  - protocol: TCP
+    port: 50070
+    targetPort: 50070
+  - protocol: TCP
+    port: 9000
+    targetPort: 9000
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hadoop-datanode
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: hadoop-datanode
+  template:
+    metadata:
+      labels:
+        app: hadoop-datanode
+    spec:
+      containers:
+      - name: hadoop-datanode
+        image: sequenceiq/hadoop-docker:2.7.1
+        ports:
+        - containerPort: 50075  # Web UI
+Enter Hadoop Namenode pod
+kubectl exec -it hadoop-namenode -- /bin/bash
+Hadoop HDFS TEST COMMANDS (Inside Pod)
+hadoop fs -ls /
+hadoop fs -mkdir /testdir
+hadoop fs -ls /
+echo "Hello Hadoop Kubernetes" > testfile.txt
+hadoop fs -put testfile.txt /testdir/
+hadoop fs -ls /testdir
+hadoop fs -cat /testdir/testfile.txt
+exit
+
+
+
