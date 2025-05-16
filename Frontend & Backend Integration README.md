@@ -1,0 +1,215 @@
+FRONTEND CODE
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Budget Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 20px;
+    }
+    header {
+      text-align: center;
+      background: #3b82f6;
+      color: white;
+      padding: 20px 0;
+      font-size: 24px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    canvas {
+      margin-top: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background: #3b82f6;
+      color: white;
+    }
+    #categorySelect {
+      margin-top: 20px;
+      padding: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>Smart Budget Tracker</header>
+
+  <div class="container">
+    <h2>Spending by Category</h2>
+    <canvas id="barChart"></canvas>
+
+    <h3>Filter Transactions by Category:</h3>
+    <select id="categorySelect">
+      <option value="All">All Categories</option>
+      <option value="ENTERTAINMENT">ENTERTAINMENT</option>
+      <option value="FOOD_AND_DRINK">FOOD_AND_DRINK</option>
+      <option value="TRAVEL">TRAVEL</option>
+      <option value="TRANSPORTATION">TRANSPORTATION</option>
+      <option value="PERSONAL_CARE">PERSONAL_CARE</option>
+      <option value="LOAN_PAYMENTS">LOAN_PAYMENTS</option>
+      <option value="INCOME">INCOME</option>
+      <option value="GENERAL_SERVICES">GENERAL_SERVICES</option>
+      <option value="GENERAL_MERCHANDISE">GENERAL_MERCHANDISE</option>
+    </select>
+
+    <table id="transactionTable">
+      <thead>
+        <tr>
+          <th>Transaction ID</th>
+          <th>Date</th>
+          <th>Amount ($)</th>
+          <th>Category</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Rows will be inserted dynamically -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    // Example data - you can replace this with JSON-parsed CSV data
+    const transactions = [
+      { id: "TXN1001", date: "2024-10-15", amount: 1200.00, category: "ENTERTAINMENT" },
+      { id: "TXN1002", date: "2024-10-14", amount: 75.50, category: "FOOD_AND_DRINK" },
+      { id: "TXN1003", date: "2024-10-13", amount: 45.75, category: "TRANSPORTATION" },
+      { id: "TXN1004", date: "2024-10-12", amount: 220.00, category: "LOAN_PAYMENTS" },
+      { id: "TXN1005", date: "2024-10-11", amount: 30.99, category: "GENERAL_MERCHANDISE" },
+    ];
+
+    // Chart Initialization
+    const categoryTotals = {};
+    transactions.forEach(txn => {
+      categoryTotals[txn.category] = (categoryTotals[txn.category] || 0) + txn.amount;
+    });
+
+    const ctx = document.getElementById('barChart').getContext('2d');
+    const barChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(categoryTotals),
+        datasets: [{
+          label: 'Amount ($)',
+          data: Object.values(categoryTotals),
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    // Populate Transaction Table
+    const tableBody = document.querySelector('#transactionTable tbody');
+    const renderTable = (category = "All") => {
+      tableBody.innerHTML = '';
+      transactions
+        .filter(txn => category === "All" || txn.category === category)
+        .forEach(txn => {
+          const row = `<tr>
+            <td>${txn.id}</td>
+            <td>${txn.date}</td>
+            <td>${txn.amount.toFixed(2)}</td>
+            <td>${txn.category}</td>
+          </tr>`;
+          tableBody.insertAdjacentHTML('beforeend', row);
+        });
+    };
+    renderTable();
+
+    // Category Filter
+    document.getElementById("categorySelect").addEventListener("change", (e) => {
+      renderTable(e.target.value);
+    });
+  </script>
+</body>
+</html>
+
+FLASK BACKEND INTEGRATION 
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from plaid import Client
+import os
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for local frontend testing
+
+# --- Plaid Client Configuration ---
+client = Client(
+    client_id='PLAID_CLIENT_ID',
+    secret='PLAID_SECRET',
+    environment='sandbox'  # or 'development' or 'production'
+)
+
+# --- Step 1: Exchange Public Token ---
+@app.route('/api/exchange_token', methods=['POST'])
+def exchange_token():
+    public_token = request.json.get('public_token')
+    try:
+        exchange_response = client.Item.public_token.exchange(public_token)
+        access_token = exchange_response['access_token']
+        return jsonify({'access_token': access_token})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# --- Step 2: Fetch Transactions ---
+@app.route('/api/transactions', methods=['POST'])
+def fetch_transactions():
+    access_token = request.json.get('access_token')
+    try:
+        response = client.Transactions.get(access_token, start_date='2023-01-01', end_date='2023-12-31')
+        transactions = response['transactions']
+        return jsonify(transactions)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# --- Run the app ---
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+
+FETCHING FROM FRONTEND 
+etch('http://localhost:5000/api/exchange_token', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ public_token })
+})
+.then(res => res.json())
+.then(data => {
+  const access_token = data.access_token;
+
+  // Then fetch transactions
+  return fetch('http://localhost:5000/api/transactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token })
+  });
+})
+.then(res => res.json())
+.then(transactions => {
+  console.log(transactions);  // You can feed this to your chart/table
+});
+
+
