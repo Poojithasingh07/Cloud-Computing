@@ -1,0 +1,264 @@
+!pip install boto3 flask
+Requirement already satisfied: boto3 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (1.38.9)
+Requirement already satisfied: flask in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (3.1.1)
+Requirement already satisfied: botocore<1.39.0,>=1.38.9 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from boto3) (1.38.9)
+Requirement already satisfied: jmespath<2.0.0,>=0.7.1 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from boto3) (1.0.1)
+Requirement already satisfied: s3transfer<0.13.0,>=0.12.0 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from boto3) (0.12.0)
+Requirement already satisfied: blinker>=1.9.0 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from flask) (1.9.0)
+Requirement already satisfied: click>=8.1.3 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from flask) (8.2.0)
+Requirement already satisfied: itsdangerous>=2.2.0 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from flask) (2.2.0)
+Requirement already satisfied: jinja2>=3.1.2 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from flask) (3.1.6)
+Requirement already satisfied: markupsafe>=2.1.1 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from flask) (3.0.2)
+Requirement already satisfied: werkzeug>=3.1.0 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from flask) (3.1.3)
+Requirement already satisfied: python-dateutil<3.0.0,>=2.1 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from botocore<1.39.0,>=1.38.9->boto3) (2.9.0.post0)
+Requirement already satisfied: urllib3!=2.2.0,<3,>=1.25.4 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from botocore<1.39.0,>=1.38.9->boto3) (2.4.0)
+Requirement already satisfied: colorama in c:\users\vdeep\appdata\roaming\python\python313\site-packages (from click>=8.1.3->flask) (0.4.6)
+Requirement already satisfied: six>=1.5 in c:\users\vdeep\appdata\local\programs\python\python313\lib\site-packages (from python-dateutil<3.0.0,>=2.1->botocore<1.39.0,>=1.38.9->boto3) (1.17.0
+[notice] A new release of pip is available: 25.0.1 -> 25.1.1
+[notice] To update, run: python.exe -m pip install --upgrade pip
+import boto3
+import json
+
+# Set up your AWS credentials and region
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id='AKIA3G7PVKQCUWHJLMEE',
+    aws_secret_access_key='LhsmIdXdU7xaFEUBexVMvDUC6kgoif8VjYsQufI7',
+    region_name='us-east-1'
+)
+
+# Specify the bucket and file key
+bucket_name = 'budget-tracker-bucket-690'
+file_key = 'plaid_backup_20250515215505.json'
+
+# Fetch the object from S3
+response = s3_client.get_object(Bucket=bucket_name, Key=file_key)
+
+# Read and parse the JSON
+content = response['Body'].read().decode('utf-8')
+data = json.loads(content)
+
+# Display (or process) the data
+data
+utput exceeds the size limit. Open the full output data in a text editor
+{'accounts': [{'account_id': 'gGE4J6ayozUBKPjeeqrRtwyDb4XQ3DtEdmGBD',
+   'balances': {'available': 100.0,
+    'current': 110.0,
+    'iso_currency_code': 'USD',
+    'limit': None,
+    'unofficial_currency_code': None},
+   'holder_category': 'personal',
+   'mask': '0000',
+   'name': 'Plaid Checking',
+   'official_name': 'Plaid Gold Standard 0% Interest Checking',
+   'subtype': 'checking',
+   'type': 'depository'},
+  {'account_id': '8dNlRPj1g5CvA87ddVoWuajQeqoN8QHWelR66',
+   'balances': {'available': 200.0,
+    'current': 210.0,
+    'iso_currency_code': 'USD',
+    'limit': None,
+    'unofficial_currency_code': None},
+   'holder_category': 'personal',
+   'mask': '1111',
+   'name': 'Plaid Saving',
+   'official_name': 'Plaid Silver Standard 0.1% Interest Saving',
+   'subtype': 'savings',
+   'type': 'depository'},
+  {'account_id': 'Ep8jrWByJPFb8mB55gQqcXZ6wxzQl6c43KM7N',
+...
+   'transaction_code': None,
+   'transaction_id': 'pyq1XmRxvjSGrWozzJ6PCjbJAx79aZFploN7k',
+   'transaction_type': 'special',
+   'unofficial_currency_code': None,
+mport pandas as pd
+
+# Step 1: Extract 'transactions' list from the loaded JSON data
+transactions = data.get("transactions", [])
+
+# Step 2: Convert to pandas DataFrame with flattened nested fields
+df_transactions = pd.json_normalize(transactions)
+
+# Step 3: Convert date fields to datetime (if present)
+df_transactions['date'] = pd.to_datetime(df_transactions['date'], errors='coerce')
+df_transactions['authorized_date'] = pd.to_datetime(df_transactions['authorized_date'], errors='coerce')
+
+# Step 4: Preview the first 5 rows and available columns
+print("✅ Loaded transactions:", len(df_transactions))
+print("📊 Available columns:", df_transactions.columns.tolist())
+df_transactions.head()
+ Loaded transactions: 100
+📊 Available columns: ['account_id', 'account_owner', 'amount', 'authorized_date', 'authorized_datetime', 'category', 'category_id', 'check_number', 'counterparties', 'date', 'datetime',
+'iso_currency_code', 'logo_url', 'merchant_entity_id', 'merchant_name', 'name', 'payment_channel', 'pending', 'pending_transaction_id', 'personal_finance_category_icon_url', 'transaction_code', 'transaction_id', 'transaction_type', 'unofficial_currency_code', 'website', 'location.address', 'location.city', 'location.co
+untry', 'location.lat', 'location.lon', 'location.postal_code', 'location.region', 'location.store_number', 'payment_meta.by_order_of', 'payment_meta.payee', 'payment_meta.payer', 'payment_meta.payment_method', 'payment_meta.payment_processor', 'payment_meta.ppd_id', 'payment_meta.reason', 'payment_meta.reference_number', 'personal_finance_category.confidence_level', 'personal_finance_category.detailed', 'perso
+	account_id	account_owner	amount	authorized_date	authorized_datetime	category	category_id	check_number	counterparties	date	...	payment_meta.payee	payment_meta.payer	payment_meta.payment_method	payment_meta.payment_processor	payment_meta.ppd_id	payment_meta.reason	payment_meta.reference_number	personal_finance_category.confidence_level	personal_finance_category.detailed	personal_finance_category.primary
+0	8dNlRPj1g5CvA87ddVoWuajQeqoN8QHWelR66	None	25.0	2023-12-25	None	None	None	None	[]	2023-12-26	...	None	None	None	None	None	None	None	LOW	LOAN_PAYMENTS_CREDIT_CARD_PAYMENT	LOAN_PAYMENTS
+1	gGE4J6ayozUBKPjeeqrRtwyDb4XQ3DtEdmGBD	None	5.4	2023-12-25	None	None	None	None	[{'confidence_level': 'VERY_HIGH', 'entity_id'...	2023-12-26	...	None	None	None	None	None	None	None	VERY_HIGH	TRANSPORTATION_TAXIS_AND_RIDE_SHARES	TRANSPORTATION
+2	AZLa9WkGJduye3xZZwXzcMAqENpdXqU93XkDV	None	5850.0	NaT	None	None	None	None	[]	2023-12-25	...	None	None	ACH	None	None	None	None	LOW	GENERAL_SERVICES_ACCOUNTING_AND_FINANCIAL_PLAN...	GENERAL_SERVICES
+3	Ep8jrWByJPFb8mB55gQqcXZ6wxzQl6c43KM7N	None	1000.0	NaT	None	None	None	None	[]	2023-12-25	...	None	None	None	None	None	None	None	LOW	GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE	GENERAL_MERCHANDISE
+4	W7am4AyQ3bSBWaZ55zq1tRW6dMqeP6f6qm585	None	78.5	2023-12-23	None	None	None	None	[]	2023-12-24	...	None	None	None	None	None	None	None	LOW	PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS	PERSONAL_CARE
+	account_id	account_owner	amount	authorized_date	authorized_datetime	category	category_id	check_number	counterparties	date	...	payment_meta.payee	payment_meta.payer	payment_meta.payment_method	payment_meta.payment_processor	payment_meta.ppd_id	payment_meta.reason	payment_meta.reference_number	personal_finance_category.confidence_level	personal_finance_category.detailed	personal_finance_category.primary
+0	8dNlRPj1g5CvA87ddVoWuajQeqoN8QHWelR66	None	25.0	2023-12-25	None	None	None	None	[]	2023-12-26	...	None	None	None	None	None	None	None	LOW	LOAN_PAYMENTS_CREDIT_CARD_PAYMENT	LOAN_PAYMENTS
+1	gGE4J6ayozUBKPjeeqrRtwyDb4XQ3DtEdmGBD	None	5.4	2023-12-25	None	None	None	None	[{'confidence_level': 'VERY_HIGH', 'entity_id'...	2023-12-26	...	None	None	None	None	None	None	None	VERY_HIGH	TRANSPORTATION_TAXIS_AND_RIDE_SHARES	TRANSPORTATION
+2	AZLa9WkGJduye3xZZwXzcMAqENpdXqU93XkDV	None	5850.0	NaT	None	None	None	None	[]	2023-12-25	...	None	None	ACH	None	None	None	None	LOW	GENERAL_SERVICES_ACCOUNTING_AND_FINANCIAL_PLAN...	GENERAL_SERVICES
+3	Ep8jrWByJPFb8mB55gQqcXZ6wxzQl6c43KM7N	None	1000.0	NaT	None	None	None	None	[]	2023-12-25	...	None	None	None	None	None	None	None	LOW	GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE	GENERAL_MERCHANDISE
+4	W7am4AyQ3bSBWaZ55zq1tRW6dMqeP6f6qm585	None	78.5	2023-12-23	None	None	None	None	[]	2023-12-24	...	None	None	None	None	None	None	None	LOW	PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS	PERSONAL_CARE
+0	8dNlRPj1g5CvA87ddVoWuajQeqoN8QHWelR66	None	25.0	2023-12-25	None	None	None	None	[]	2023-12-26	...	None	None	None	None	None	None	None	LOW	LOAN_PAYMENTS_CREDIT_CARD_PAYMENT	LOAN_PAYMENTS
+1	gGE4J6ayozUBKPjeeqrRtwyDb4XQ3DtEdmGBD	None	5.4	2023-12-25	None	None	None	None	[{'confidence_level': 'VERY_HIGH', 'entity_id'...	2023-12-26	...	None	None	None	None	None	None	None	VERY_HIGH	TRANSPORTATION_TAXIS_AND_RIDE_SHARES	TRANSPORTATION
+2	AZLa9WkGJduye3xZZwXzcMAqENpdXqU93XkDV	None	5850.0	NaT	None	None	None	None	[]	2023-12-25	...	None	None	ACH	None	None	None	None	LOW	GENERAL_SERVICES_ACCOUNTING_AND_FINANCIAL_PLAN...	GENERAL_SERVICES
+3	Ep8jrWByJPFb8mB55gQqcXZ6wxzQl6c43KM7N	None	1000.0	NaT	None	None	None	None	[]	2023-12-25	...	None	None	None	None	None	None	None	LOW	GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE	GENERAL_MERCHANDISE
+4	W7am4AyQ3bSBWaZ55zq1tRW6dMqeP6f6qm585	None	78.5	2023-12-23	None	None	None	None	[]	2023-12-24	...	None	None	None	None	None	None	None	LOW	PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS	PERSONAL_CARE
+...	...	...	...	...	...	...	...	...	...	...	...	...	...	...	...	...	...	...	...	...	...
+95	W7am4AyQ3bSBWaZ55zq1tRW6dMqeP6f6qm585	None	500.0	NaT	None	None	None	None	[]	2023-07-08	...	None	None	None	None	None	None	None	LOW	GENERAL_MERCHANDISE_SPORTING_GOODS	GENERAL_MERCHANDISE
+96	8dNlRPj1g5CvA87ddVoWuajQeqoN8QHWelR66	None	25.0	2023-06-28	None	None	None	None	[]	2023-06-29	...	None	None	None	None	None	None	None	LOW	LOAN_PAYMENTS_CREDIT_CARD_PAYMENT	LOAN_PAYMENTS
+97	gGE4J6ayozUBKPjeeqrRtwyDb4XQ3DtEdmGBD	None	5.4	2023-06-28	None	None	None	None	[{'confidence_level': 'VERY_HIGH', 'entity_id'...	2023-06-29	...	None	None	None	None	None	None	None	VERY_HIGH	TRANSPORTATION_TAXIS_AND_RIDE_SHARES	TRANSPORTATION
+98	AZLa9WkGJduye3xZZwXzcMAqENpdXqU93XkDV	None	5850.0	NaT	None	None	None	None	[]	2023-06-28	...	None	None	ACH	None	None	None	None	LOW	GENERAL_SERVICES_ACCOUNTING_AND_FINANCIAL_PLAN...	GENERAL_SERVICES
+99	Ep8jrWByJPFb8mB55gQqcXZ6wxzQl6c43KM7N	None	1000.0	NaT	None	None	None	None	[]	2023-06-28	...	None	None	None	None	None	None	None	LOW	GENERAL_MERCHANDISE_OTHER_GENERAL_MERCHANDISE	GENERAL_MERCHANDISE
+100 rows × 44 columns
+if 'pending' in df_transactions.columns:
+    df_transactions['is_pending'] = df_transactions['pending'].map({'True': True, 'False': False, True: True, False: False})
+
+# Parse 'counterparties' column if present
+if 'counterparties' in df_transactions.columns:
+    df_transactions['counterparty_name'] = None
+    df_transactions['counterparty_type'] = None
+    df_transactions['counterparty_website'] = None
+
+def parse_counterparties(cp_str):
+    if pd.isna(cp_str) or cp_str == '[]' or (isinstance(cp_str, list) and len(cp_str) == 0):
+        return None, None, None
+    try:
+        if isinstance(cp_str, str):
+            cp_str = cp_str.replace("'", '"').replace("None", "null")
+            cp_data = json.loads(cp_str)
+        elif isinstance(cp_str, list):
+            cp_data = cp_str
+        else:
+            return None, None, None
+        if isinstance(cp_data, list) and len(cp_data) > 0:
+            cp = cp_data[0]
+            return cp.get('name'), cp.get('type'), cp.get('website')
+        return None, None, None
+    except:
+        return None, None, None
+if 'pending' in df_transactions.columns:
+    df_transactions['is_pending'] = df_transactions['pending'].map({'True': True, 'False': False, True: True, False: False})
+
+# Parse 'counterparties' column if present
+if 'counterparties' in df_transactions.columns:
+    df_transactions['counterparty_name'] = None
+    df_transactions['counterparty_type'] = None
+    df_transactions['counterparty_website'] = None
+
+def parse_counterparties(cp_str):
+    if pd.isna(cp_str) or cp_str == '[]' or (isinstance(cp_str, list) and len(cp_str) == 0):
+        return None, None, None
+    try:
+        if isinstance(cp_str, str):
+            cp_str = cp_str.replace("'", '"').replace("None", "null")
+            cp_data = json.loads(cp_str)
+        elif isinstance(cp_str, list):
+            cp_data = cp_str
+        else:
+            return None, None, None
+        if isinstance(cp_data, list) and len(cp_data) > 0:
+            cp = cp_data[0]
+            return cp.get('name'), cp.get('type'), cp.get('website')
+        return None, None, None
+    except:
+        return None, None, None
+
+
+    counterparty_data = df_transactions['counterparties'].apply(parse_counterparties)
+    df_transactions['counterparty_name'] = counterparty_data.str[0]
+    df_transactions['counterparty_type'] = counterparty_data.str[1]
+    df_transactions['counterparty_website'] = counterparty_data.str[2]
+
+# Create unified merchant display name
+df_transactions['merchant_display_name'] = None
+for idx, row in df_transactions.iterrows():
+    if pd.notna(row.get('merchant_name')):
+        df_transactions.at[idx, 'merchant_display_name'] = row['merchant_name']
+    elif pd.notna(row.get('counterparty_name')):
+        df_transactions.at[idx, 'merchant_display_name'] = row['counterparty_name']
+    elif pd.notna(row.get('name')):
+        df_transactions.at[idx, 'merchant_display_name'] = row['name'].split(' ')[0]
+
+# Rename category fields
+column_renames = {
+    'date': 'transaction_date',
+    'authorized_date': 'authorization_date',
+    'name': 'transaction_name',
+    'personal_finance_category.primary': 'category_primary',
+    'personal_finance_category.detailed': 'category_detailed',
+    'personal_finance_category.confidence_level': 'category_confidence',
+    'iso_currency_code': 'currency'
+}
+column_renames = {k: v for k, v in column_renames.items() if k in df_transactions.columns}
+df_transactions = df_transactions.rename(columns=column_renames)
+
+# Keep only useful columns
+potential_columns = [
+    'transaction_id', 'account_id', 'transaction_date', 'authorization_date',
+    'amount', 'currency', 'transaction_type', 'payment_channel',
+    'merchant_name', 'transaction_name', 'counterparty_name',
+    'counterparty_type', 'counterparty_website', 'category_primary'
+]
+columns_to_keep = [col for col in potential_columns if col in df_transactions.columns]
+cleaned_df = df_transactions[columns_to_keep].copy()
+# Save to Desktop folder using raw string
+df_transactions.to_csv(r"C:\Users\vdeep\OneDrive\Desktop\Cleaned Data\plaid_transactions.csv", index=False)
+print("✅ CSV saved successfully on your Desktop!")
+✅ CSV saved successfully on your Desktop!
+cleaned_df
+0	JqnMbWNrJZhdqe7556E3Tl8X1AvBbjuBX6vWW	8dNlRPj1g5CvA87ddVoWuajQeqoN8QHWelR66	2023-12-26	2023-12-25	25.0	USD	special	other	None	CREDIT CARD 3333 PAYMENT *//	None	None	None	LOAN_PAYMENTS
+1	pyq1XmRxvjSGrWozzJ6PCjbJAx79aZFploNmW	gGE4J6ayozUBKPjeeqrRtwyDb4XQ3DtEdmGBD	2023-12-26	2023-12-25	5.4	USD	special	online	Uber	Uber 063015 SF**POOL**	None	None	None	TRANSPORTATION
+2	63aRB4bZpVCeDkM33JnpuVEyMb9Aq7t8QDLdl	AZLa9WkGJduye3xZZwXzcMAqENpdXqU93XkDV	2023-12-25	NaT	5850.0	USD	special	online	None	ACH Electronic CreditGUSTO PAY 123456	None	None	None	GENERAL_SERVICES
+3	bGLBjozAZ5Ulged44oj5tE1RLxjD6Zsmnb1RG	Ep8jrWByJPFb8mB55gQqcXZ6wxzQl6c43KM7N	2023-12-25	NaT	1000.0	USD	special	other	None	CD DEPOSIT .INITIAL.	None	None	None	GENERAL_MERCHANDISE
+4	pyq1XmRxvjSGrWozzJ6PCjbJAx79aZFploNRN	W7am4AyQ3bSBWaZ55zq1tRW6dMqeP6f6qm585	2023-12-24	2023-12-23	78.5	USD	place	in store	None	Touchstone Climbing	None	None	None	PERSONAL_CARE
+...	...	...	...	...	...	...	...	...	...	...	...	...	...	...
+95	4zx9Vdke1Xtrjn1EEWkLfQklwmjnLRtJpbwD4	W7am4AyQ3bSBWaZ55zq1tRW6dMqeP6f6qm585	2023-07-08	NaT	500.0	USD	place	in store	None	Madison Bicycle Shop	None	None	None	GENERAL_MERCHANDISE
+96	4zx9Vdke1Xtrjn1EEWkLfQklwmjnLRtJpbw6M	8dNlRPj1g5CvA87ddVoWuajQeqoN8QHWelR66	2023-06-29	2023-06-28	25.0	USD	special	other	None	CREDIT CARD 3333 PAYMENT *//	None	None	None	LOAN_PAYMENTS
+97	JqnMbWNrJZhdqe7556E3Tl8X1AvBbjuBX6vNW	gGE4J6ayozUBKPjeeqrRtwyDb4XQ3DtEdmGBD	2023-06-29	2023-06-28	5.4	USD	special	online	Uber	Uber 063015 SF**POOL**	None	None	None	TRANSPORTATION
+98	JqnMbWNrJZhdqe7556E3Tl8X1AvBbjuBX6qRK	AZLa9WkGJduye3xZZwXzcMAqENpdXqU93XkDV	2023-06-28	NaT	5850.0	USD	special	online	None	ACH Electronic CreditGUSTO PAY 123456	None	None	None	GENERAL_SERVICES
+99	pyq1XmRxvjSGrWozzJ6PCjbJAx79aZFploN7k	Ep8jrWByJPFb8mB55gQqcXZ6wxzQl6c43KM7N	2023-06-28	NaT	1000.0	USD	special	other	None	CD DEPOSIT .INITIAL.	None	None	None	GENERAL_MERCHANDISE
+100 rows × 14 columns
+# Initialize DynamoDB resource
+from decimal import Decimal
+dynamodb = boto3.resource(
+    'dynamodb',
+    region_name='us-east-1',  # or your actual AWS region
+    aws_access_key_id='AKIA3G7PVKQCUWHJLMEE',
+    aws_secret_access_key='LhsmIdXdU7xaFEUBexVMvDUC6kgoif8VjYsQufI7'
+)
+
+table = dynamodb.Table('UseraTransactions')  # <-- change if your table name is different
+
+# Add a static user ID (or dynamically assign based on logic)
+user_id = 'user123'
+
+# Upload each transaction
+for _, row in df_transactions.iterrows():
+    try:
+        item = {
+            'userID': user_id,
+            'transactionID': str(row['transaction_id']),
+            'amount': Decimal(str(row['amount'])),
+            'merchant': row.get('merchant_name', 'Unknown') or 'Unknown',
+            'category': row.get('category_primary', 'Uncategorized') or 'Uncategorized',
+            'date': str(row['transaction_date']),
+        }
+
+        # Optional fields (check if they exist in your CSV)
+        if 'payment_channel' in row:
+            item['payment_channel'] = row['payment_channel']
+        if 'currency' in row:
+            item['currency'] = row['currency']
+
+        table.put_item(Item=item)
+
+    except Exception as e:
+        print(f"❌ Error inserting transaction {row['transaction_id']}: {e}")
+
+print("✅ All transactions inserted into DynamoDB.")
+✅ All transactions inserted into DynamoDB
